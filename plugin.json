@@ -4,7 +4,7 @@
   "Name": "Valorant Launcher",
   "Description": "Launch Valorant with custom network and overlay options",
   "Author": "jojor",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "Language": "python",
   "Website": "",
   "IcoPath": "icon.png",

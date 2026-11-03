@@ -1,47 +1,90 @@
 import sys
 import os
+import subprocess
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
 
-import subprocess
 from flowlauncher import FlowLauncher
 
-
 class ValorantPlugin(FlowLauncher):
-    def query(self, query):
-        return [
-            {
-                "Title": "Launch Valorant (Standard)",
-                "SubTitle": "Starts game, Medal, and Overwolf tracker",
-                "IcoPath": "icon.png",
-                "JsonRPCAction": {"method": "launch_env", "parameters": [""]},
-            },
-            {
-                "Title": "Launch Valorant (With VPN)",
-                "SubTitle": "Auto-connects to Frankfurt VPN at main menu",
-                "IcoPath": "icon.png",
-                "JsonRPCAction": {"method": "launch_env", "parameters": ["-WithVPN"]},
-            },
-            {
-                "Title": "Launch Valorant (No Overlays)",
-                "SubTitle": "Starts game only, skips background apps",
-                "IcoPath": "icon.png",
-                "JsonRPCAction": {
-                    "method": "launch_env",
-                    "parameters": ["-SkipOverlays"],
+    def query(self, param=""):
+        q = param.strip().lower()
+        
+        # -----------------------------------------
+        # SUBMENU: LAUNCH OPTIONS
+        # -----------------------------------------
+        if q.startswith("launch"):
+            return [
+                {
+                    "Title": "Launch with ExitLag",
+                    "SubTitle": "Starts ExitLag, Overlays, and Valorant",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {"method": "execute_ps", "parameters": ["-Action Launch -WithExitLag"]}
                 },
-            },
-        ]
+                {
+                    "Title": "Launch without ExitLag",
+                    "SubTitle": "Starts Overlays and Valorant only",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {"method": "execute_ps", "parameters": ["-Action Launch"]}
+                },
+                {
+                    "Title": "Launch (No Overlays)",
+                    "SubTitle": "Starts ExitLag and Valorant, skips background apps",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {"method": "execute_ps", "parameters": ["-Action Launch -WithExitLag -SkipOverlays"]}
+                }
+            ]
+            
+        # -----------------------------------------
+        # SUBMENU: CLOSE OPTIONS
+        # -----------------------------------------
+        elif q.startswith("close"):
+            return [
+                {
+                    "Title": "Close All (Full Nuke)",
+                    "SubTitle": "Kills everything including Medal",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {"method": "execute_ps", "parameters": ["-Action Close"]}
+                },
+                {
+                    "Title": "Close Game (Keep Medal)",
+                    "SubTitle": "Kills Valorant, Riot Client, Overwolf, and ExitLag",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {"method": "execute_ps", "parameters": ["-Action Close -KeepMedal"]}
+                }
+            ]
+            
+        # -----------------------------------------
+        # MAIN MENU
+        # -----------------------------------------
+        else:
+            return [
+                {
+                    "Title": "Launch Options...",
+                    "SubTitle": "Choose how to start Valorant",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {
+                        "method": "Flow.Launcher.ChangeQuery",
+                        "parameters": ["vl launch ", True],
+                        "dontHideAfterAction": True
+                    }
+                },
+                {
+                    "Title": "Close Options...",
+                    "SubTitle": "Clean up background apps and game clients",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {
+                        "method": "Flow.Launcher.ChangeQuery",
+                        "parameters": ["vl close ", True],
+                        "dontHideAfterAction": True
+                    }
+                }
+            ]
 
-    def launch_env(self, args):
+    def execute_ps(self, args):
         script_path = r"C:\Users\jojor\bin\Start-Valorant.ps1"
-        # -NoProfile ensures Oh-My-Posh and PSReadLine don't crash the headless run
         command = f'pwsh -NoProfile -WindowStyle Hidden -File "{script_path}" {args}'
-
-        # 0x08000000 is the Windows CREATE_NO_WINDOW flag.
-        # It fully detaches the background process so Flow Launcher doesn't hang.
         subprocess.Popen(command, shell=False, creationflags=0x08000000)
-
 
 if __name__ == "__main__":
     ValorantPlugin()
