@@ -32,6 +32,12 @@ class ValorantPlugin(FlowLauncher):
                     "SubTitle": "Starts ExitLag and Valorant, skips background apps",
                     "IcoPath": "icon.png",
                     "JsonRPCAction": {"method": "execute_ps", "parameters": ["-Action Launch -WithExitLag -SkipOverlays"]}
+                },
+                {
+                    "Title": "Launch Minimal (Game Only)",
+                    "SubTitle": "Kills RTSS and starts Riot Client only",
+                    "IcoPath": "icon.png",
+                    "JsonRPCAction": {"method": "execute_ps", "parameters": ["-Action Launch -SkipOverlays"]}
                 }
             ]
             
