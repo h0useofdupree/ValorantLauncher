@@ -7,6 +7,6 @@
   "Version": "1.1.0",
   "Language": "python",
   "Website": "",
-  "IcoPath": "icon.png",
+  "IcoPath": "icons/val-icon.png",
   "ExecuteFileName": "main.py"
 }
