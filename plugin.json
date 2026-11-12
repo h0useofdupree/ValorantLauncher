@@ -1,12 +1,12 @@
-{
-  "ID": "12345678-1234-1234-1234-123456789abc",
-  "ActionKeyword": "vl",
-  "Name": "Valorant Launcher",
-  "Description": "Launch Valorant with custom network and overlay options",
-  "Author": "jojor",
-  "Version": "1.1.0",
-  "Language": "python",
-  "Website": "",
-  "IcoPath": "icons/val-icon.png",
-  "ExecuteFileName": "main.py"
+﻿{
+    "ID":  "12345678-1234-1234-1234-123456789abc",
+    "ActionKeyword":  "vl",
+    "Name":  "Valorant Launcher",
+    "Description":  "Launch Valorant with custom network and overlay options",
+    "Author":  "jojor",
+    "Version":  "1.1.1",
+    "Language":  "python",
+    "Website":  "",
+    "IcoPath":  "icons/val-icon.png",
+    "ExecuteFileName":  "main.py"
 }
