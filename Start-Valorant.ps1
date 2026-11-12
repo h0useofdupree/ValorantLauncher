@@ -53,7 +53,7 @@ function Send-Status {
     }
   }
 
-  # Native zero-dependency fallback if BurntToast isn't installed on her PC
+  # Native zero-dependency fallback for notifications
   try {
     Add-Type -AssemblyName System.Windows.Forms
     $balloon = New-Object System.Windows.Forms.NotifyIcon
@@ -76,7 +76,7 @@ if ($Action -eq "Update") {
   Set-Location $PSScriptRoot
   $oldVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
 
-  $gitOutput = git pull --tags 2>&1 | Out-String
+  git pull --tags 2>&1 | Out-Null
   if ($LASTEXITCODE -eq 0) {
     newVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
     if ($oldVer -ne $newVer) {
