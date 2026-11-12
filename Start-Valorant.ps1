@@ -23,8 +23,14 @@ if (-not $RiotClientExe -or -not (Test-Path $RiotClientExe)) {
 
 $MedalExe = "$env:LOCALAPPDATA\Medal\Medal.exe"
 $OverwolfExe = "${env:ProgramFiles(x86)}\Overwolf\OverwolfLauncher.exe"
-$ExitLagExe = "${env:ProgramFiles(x86)}\ExitLag\ExitLag.exe"
 $RtssExe = "${env:ProgramFiles(x86)}\RivaTuner Statistics Server\RTSS.exe"
+
+$ExitLagCandidates = @(
+  "$env:ProgramW6432\ExitLag\ExitLag.exe",
+  "${env:ProgramFiles(x86)}\ExitLag\ExitLag.exe",
+  "$env:LOCALAPPDATA\ExitLag\ExitLag.exe"
+)
+$ExitLagExe = $ExitLagCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 # Retain whether RTSS was running before we killed it, or if it's installed
 $HasRtss = Test-Path $RtssExe

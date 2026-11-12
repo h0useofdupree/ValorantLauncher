@@ -11,12 +11,17 @@ from flowlauncher import FlowLauncher
 class ValorantPlugin(FlowLauncher):
     def __init__(self):
         # Auto-detect installed tools on current machine
+        prog_64 = os.environ.get("ProgramW6432", r"C:\Program Files")
         prog_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
         local_app = os.environ.get("LOCALAPPDATA", "")
 
-        self.has_exitlag = os.path.exists(
-            os.path.join(prog_x86, "ExitLag", "ExitLag.exe")
-        )
+        exitlag_paths = [
+            os.path.join(prog_64, "ExitLag", "ExitLag.exe"),
+            os.path.join(prog_x86, "ExitLag", "ExitLag.exe"),
+            os.path.join(local_app, "ExitLag", "ExitLag.exe"),
+        ]
+        self.has_exitlag = any(os.path.exists(p) for p in exitlag_paths)
+
         self.has_rtss = os.path.exists(
             os.path.join(prog_x86, "RivaTuner Statistics Server", "RTSS.exe")
         )
