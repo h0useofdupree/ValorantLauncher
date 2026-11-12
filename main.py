@@ -40,7 +40,7 @@ class ValorantPlugin(FlowLauncher):
                         {
                             "Title": "Launch with ExitLag",
                             "SubTitle": f"Starts ExitLag, Overlays, and Valorant{rtss_note}",
-                            "IcoPath": "icon.png",
+                            "IcoPath": "icons/val-icon.png",
                             "JsonRPCAction": {
                                 "method": "execute_ps",
                                 "parameters": ["-Action Launch -WithExitLag"],
@@ -49,7 +49,7 @@ class ValorantPlugin(FlowLauncher):
                         {
                             "Title": "Launch without ExitLag",
                             "SubTitle": f"Starts Overlays and Valorant only{rtss_note}",
-                            "IcoPath": "icon.png",
+                            "IcoPath": "icons/val-icon.png",
                             "JsonRPCAction": {
                                 "method": "execute_ps",
                                 "parameters": ["-Action Launch"],
@@ -62,7 +62,7 @@ class ValorantPlugin(FlowLauncher):
                     {
                         "Title": "Launch Valorant (Standard)",
                         "SubTitle": f"Starts Overlays and Valorant{rtss_note}",
-                        "IcoPath": "icon.png",
+                        "IcoPath": "icons/val-icon.png",
                         "JsonRPCAction": {
                             "method": "execute_ps",
                             "parameters": ["-Action Launch"],
@@ -83,7 +83,7 @@ class ValorantPlugin(FlowLauncher):
                 {
                     "Title": "Launch (No Overlays)",
                     "SubTitle": f"{no_overlay_sub}{rtss_note}",
-                    "IcoPath": "icon.png",
+                    "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
                         "parameters": [no_overlay_params],
@@ -96,7 +96,7 @@ class ValorantPlugin(FlowLauncher):
                     {
                         "Title": "Launch Minimal (Game Only)",
                         "SubTitle": f"Starts Riot Client only, skips ExitLag & overlays{rtss_note}",
-                        "IcoPath": "icon.png",
+                        "IcoPath": "icons/val-icon.png",
                         "JsonRPCAction": {
                             "method": "execute_ps",
                             "parameters": ["-Action Launch -SkipOverlays"],
@@ -136,7 +136,7 @@ class ValorantPlugin(FlowLauncher):
                     "SubTitle": f"Kills {kill_str}"
                     + (", and Medal" if self.has_medal else "")
                     + rtss_restart,
-                    "IcoPath": "icon.png",
+                    "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
                         "parameters": ["-Action Close"],
@@ -153,7 +153,7 @@ class ValorantPlugin(FlowLauncher):
                 {
                     "Title": "Launch Options...",
                     "SubTitle": "Choose how to start Valorant",
-                    "IcoPath": "icon.png",
+                    "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "Flow.Launcher.ChangeQuery",
                         "parameters": ["vl launch ", True],
@@ -163,7 +163,7 @@ class ValorantPlugin(FlowLauncher):
                 {
                     "Title": "Close Options...",
                     "SubTitle": "Clean up background apps and game clients",
-                    "IcoPath": "icon.png",
+                    "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "Flow.Launcher.ChangeQuery",
                         "parameters": ["vl close ", True],
