@@ -88,7 +88,7 @@ class ValorantPlugin(FlowLauncher):
             ]
 
     def execute_ps(self, args):
-        script_path = r"C:\Users\jojor\bin\Start-Valorant.ps1"
+        script_path = os.path.join(os.path.dirname(__file__), "Start-Valorant.ps1")
         command = f'pwsh -NoProfile -WindowStyle Hidden -File "{script_path}" {args}'
         subprocess.Popen(command, shell=False, creationflags=0x08000000)
 
