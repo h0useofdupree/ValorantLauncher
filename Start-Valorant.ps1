@@ -44,7 +44,7 @@ function Send-Status {
 
   if (Get-Module -ListAvailable -Name BurntToast) {
     try {
-      New-BurntToastNotification -Text "Valorant Launcher", $Message -ErrorAction SilentlyContinue
+      New-BurntToastNotification -Text "Valorant Launcher", $Message -AppLogo .\icons\val-icon.png -ErrorAction SilentlyContinue
       return
     }
     catch {}
