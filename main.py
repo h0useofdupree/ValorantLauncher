@@ -8,6 +8,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
 
 from flowlauncher import FlowLauncher
 
+CREATE_NO_WINDOW = 0x08000000
+
 
 class ValorantPlugin(FlowLauncher):
     def __init__(self):
@@ -204,7 +206,7 @@ class ValorantPlugin(FlowLauncher):
         # Use pwsh (PS7) if installed, otherwise fall back to powershell.exe
         ps_exe = "pwsh" if shutil.which("pwsh") else "powershell.exe"
         command = f'{ps_exe} -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{script_path}" {args}'
-        subprocess.Popen(command, shell=False, creationflags=0x08000000)
+        subprocess.Popen(command, shell=False, creationflags=CREATE_NO_WINDOW)
 
 
 if __name__ == "__main__":
