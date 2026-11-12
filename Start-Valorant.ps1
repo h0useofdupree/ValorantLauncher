@@ -44,10 +44,13 @@ function Send-Status {
 
   if (Get-Module -ListAvailable -Name BurntToast) {
     try {
-      New-BurntToastNotification -Text "Valorant Launcher", $Message -AppLogo .\icons\val-icon.png -ErrorAction SilentlyContinue
+      Import-Module BurntToast -ErrorAction Stop
+      New-BurntToastNotification -Text "Valorant Launcher", $Message -AppLogo .\icons\val-icon.png -ErrorAction Stop
       return
     }
-    catch {}
+    catch {
+      Write-Host "BurntToast failed: $_" -ForegroundColor DarkGray
+    }
   }
 
   # Native zero-dependency fallback if BurntToast isn't installed on her PC
