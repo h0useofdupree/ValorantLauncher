@@ -122,7 +122,7 @@ class ValorantPlugin(FlowLauncher):
                     {
                         "Title": "Close Game (Keep Medal)",
                         "SubTitle": f"Kills {kill_str}{rtss_restart}",
-                        "IcoPath": "icon.png",
+                        "IcoPath": "icons/val-icon.png",
                         "JsonRPCAction": {
                             "method": "execute_ps",
                             "parameters": ["-Action Close -KeepMedal"],
@@ -173,7 +173,7 @@ class ValorantPlugin(FlowLauncher):
                 {
                     "Title": "Update Plugin (Git Pull)",
                     "SubTitle": "Fetch the latest version from GitHub",
-                    "IcoPath": "icon.png",
+                    "IcoPath": "icons/update-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
                         "parameters": ["-Action Update"],
