@@ -71,6 +71,7 @@ function Send-Status {
 # =============================================================================
 if ($Action -eq "Update") {
   Set-Location $PSScriptRoot
+  $gitOutput = git pull 2>&1 | Out-String
   if ($LASTEXITCODE -eq 0) {
     Send-Status -Message "Plugin updated! ($($gitOutput.Trim()))" -Color Green
   }
