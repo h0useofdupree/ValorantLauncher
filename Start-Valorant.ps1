@@ -6,21 +6,72 @@ param (
 )
 
 # =============================================================================
-# HELPER FUNCTIONS
+# DYNAMIC PATH RESOLUTION (Works across C:\, D:\, Win10 & Win11)
+# =============================================================================
+# 1. Auto-detect Riot Client from Windows Registry, fallback to C:\Riot Games
+$RiotReg = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Riot Game valorant.live" -ErrorAction SilentlyContinue
+if ($RiotReg -and $RiotReg.UninstallString) {
+  if ($RiotReg.UninstallString -match '"([^"]+RiotClientServices\.exe)"') {
+    $RiotClientExe = $Matches[1]
+    $RiotClientDir = Split-Path $RiotClientExe -Parent
+  }
+}
+if (-not $RiotClientExe -or -not (Test-Path $RiotClientExe)) {
+  $RiotClientDir = "C:\Riot Games\Riot Client"
+  $RiotClientExe = "$RiotClientDir\RiotClientServices.exe"
+}
+
+$MedalExe = "$env:LOCALAPPDATA\Medal\Medal.exe"
+$OverwolfExe = "${env:ProgramFiles(x86)}\Overwolf\OverwolfLauncher.exe"
+$ExitLagExe = "${env:ProgramFiles(x86)}\ExitLag\ExitLag.exe"
+$RtssExe = "${env:ProgramFiles(x86)}\RivaTuner Statistics Server\RTSS.exe"
+
+# Retain whether RTSS was running before we killed it, or if it's installed
+$HasRtss = Test-Path $RtssExe
+
+# =============================================================================
+# NOTIFICATION ENGINE (BurntToast with Native Win10/11 Fallback)
 # =============================================================================
 function Send-Status {
-  param(
-    [string]$Message, 
-    [string]$Color = "White"
-  )
-  # 1. Print to the terminal (for manual runs)
+  param([string]$Message, [string]$Color = "White")
   Write-Host $Message -ForegroundColor $Color
-    
-  # 2. Fire the graphical Windows notification
+
+  if (Get-Module -ListAvailable -Name BurntToast) {
+    try {
+      New-BurntToastNotification -Text "Valorant Launcher", $Message -ErrorAction SilentlyContinue
+      return
+    }
+    catch {}
+  }
+
+  # Native zero-dependency fallback if BurntToast isn't installed on her PC
   try {
-    New-BurntToastNotification -Text "Valorant Launcher", $Message -ErrorAction SilentlyContinue
+    Add-Type -AssemblyName System.Windows.Forms
+    $balloon = New-Object System.Windows.Forms.NotifyIcon
+    $balloon.Icon = [System.Drawing.SystemIcons]::Information
+    $balloon.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
+    $balloon.BalloonTipTitle = "Valorant Launcher"
+    $balloon.BalloonTipText = $Message
+    $balloon.Visible = $true
+    $balloon.ShowBalloonTip(3000)
+    Start-Sleep -Milliseconds 500
+    $balloon.Dispose()
   }
   catch {}
+}
+
+# =============================================================================
+# SELF-UPDATE SEQUENCE (GIT PULL)
+# =============================================================================
+if ($Action -eq "Update") {
+  Set-Location $PSScriptRoot
+  if ($LASTEXITCODE -eq 0) {
+    Send-Status -Message "Plugin updated! ($($gitOutput.Trim()))" -Color Green
+  }
+  else {
+    Send-Status -Message "Git update failed. Check repository status." -Color Red
+  }
+  exit
 }
 
 # =============================================================================
@@ -28,30 +79,23 @@ function Send-Status {
 # =============================================================================
 if ($Action -eq "Close") {
   Send-Status -Message "Initiating Teardown Sequence..." -Color Cyan
-    
-  Write-Host "Closing Valorant and Riot Client..." -ForegroundColor Yellow
+
   Stop-Process -Name "VALORANT-Win64-Shipping" -Force -ErrorAction SilentlyContinue
   Stop-Process -Name "RiotClientServices" -Force -ErrorAction SilentlyContinue
-    
-  Write-Host "Closing Overwolf and ExitLag..." -ForegroundColor Yellow
   Stop-Process -Name "Overwolf" -Force -ErrorAction SilentlyContinue
   Stop-Process -Name "OverwolfLauncher" -Force -ErrorAction SilentlyContinue
   Stop-Process -Name "ExitLag" -Force -ErrorAction SilentlyContinue
-    
+
   if (-not $KeepMedal) {
-    Write-Host "Closing Medal..." -ForegroundColor Yellow
     Stop-Process -Name "Medal" -Force -ErrorAction SilentlyContinue
   }
-  else {
-    Write-Host "Keeping Medal running..." -ForegroundColor DarkGray
+
+  if ($HasRtss -and -not (Get-Process -Name "RTSS" -ErrorAction SilentlyContinue)) {
+    Start-Process -FilePath $RtssExe -ErrorAction SilentlyContinue
   }
-  
-  Write-Host "Restarting RTSS..." -ForegroundColor Green
-  # Verify this path matches your installation directory
-  Start-Process -FilePath "C:\Program Files (x86)\RivaTuner Statistics Server\RTSS.exe" -ErrorAction SilentlyContinue
-    
+
   Send-Status -Message "Teardown Complete. Background apps closed." -Color Green
-  exit 
+  exit
 }
 
 # =============================================================================
@@ -59,40 +103,41 @@ if ($Action -eq "Close") {
 # =============================================================================
 if ($Action -eq "Launch") {
   Send-Status -Message "Initializing Valorant Environment..." -Color Cyan
-  
-  # 1. Terminating RTSS to prevent conflicts
-  Write-Host "Suspending RTSS to prevent Vanguard conflicts..." -ForegroundColor Yellow
-  Stop-Process -Name "RTSS" -Force -ErrorAction SilentlyContinue
-  Stop-Process -Name "RTSSHooksLoader64" -Force -ErrorAction SilentlyContinue
 
-  # 2. Boot ExitLag
-  if ($WithExitLag) {
+  # 1. Suspend RTSS if installed/running
+  if ($HasRtss) {
+    Stop-Process -Name "RTSS" -Force -ErrorAction SilentlyContinue
+    Stop-Process -Name "RTSSHooksLoader64" -Force -ErrorAction SilentlyContinue
+  }
+
+  # 2. Boot ExitLag (if requested & installed)
+  if ($WithExitLag -and (Test-Path $ExitLagExe)) {
     if (-not (Get-Process -Name "ExitLag" -ErrorAction SilentlyContinue)) {
-      Write-Host "Starting ExitLag..." -ForegroundColor Green
-      Start-Process -FilePath "C:\Program Files\ExitLag\ExitLag.exe"
+      Start-Process -FilePath $ExitLagExe
       Start-Sleep -Seconds 3
-    }
-    else {
-      Write-Host "ExitLag is already running." -ForegroundColor DarkGray
     }
   }
 
   # 3. Launch background overlays
   if (-not $SkipOverlays) {
-    Write-Host "Starting Medal & Overwolf's Valorant Tracker..." -ForegroundColor Green
-    Start-Process -FilePath "$env:LOCALAPPDATA\Medal\Medal.exe" -ArgumentList "--hidden"
-    Start-Process -FilePath "${env:ProgramFiles(x86)}\Overwolf\OverwolfLauncher.exe" -ArgumentList "-launchapp ipmlnnogholfmdmenfijjifldcpjoecappfccceh -from-desktop"
+    if (Test-Path $MedalExe) {
+      Start-Process -FilePath $MedalExe -ArgumentList "--hidden"
+    }
+    if (Test-Path $OverwolfExe) {
+      Start-Process -FilePath $OverwolfExe -ArgumentList "-launchapp ipmlnnogholfmdmenfijjifldcpjoecappfccceh -from-desktop"
+    }
     Start-Sleep -Seconds 3
   }
-  else {
-    Write-Host "Skipping background overlays..." -ForegroundColor DarkGray
-  }
 
-  # 4. Clean up hanging Riot Client
+  # 4. Clean up & Launch Riot Client
   Stop-Process -Name "RiotClientServices" -Force -ErrorAction SilentlyContinue
   Start-Sleep -Seconds 1
 
-  # 5. Launch Riot Client
-  Send-Status -Message "Launching Riot Client. Click 'Play' when ready." -Color Yellow
-  Start-Process -FilePath "C:\Riot Games\Riot Client\RiotClientServices.exe" -ArgumentList "--launch-product=valorant --launch-patchline=live" -WorkingDirectory "C:\Riot Games\Riot Client"
+  if (Test-Path $RiotClientExe) {
+    Send-Status -Message "Launching Riot Client. Click 'Play' when ready." -Color Yellow
+    Start-Process -FilePath $RiotClientExe -ArgumentList "--launch-product=valorant --launch-patchline=live" -WorkingDirectory $RiotClientDir
+  }
+  else {
+    Send-Status -Message "Error: Riot Client not found at $RiotClientExe" -Color Red
+  }
 }
