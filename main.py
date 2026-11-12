@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import shutil
 import subprocess
 
@@ -10,6 +11,17 @@ from flowlauncher import FlowLauncher
 
 class ValorantPlugin(FlowLauncher):
     def __init__(self):
+        base_dir = os.path.dirname(__file__)
+
+        # Get plugin version
+        try:
+            with open(
+                os.path.join(base_dir, "plugin.json"), "r", encoding="utf-8"
+            ) as f:
+                self.version = json.load(f).get("Version", "Unknown")
+        except Exception:
+            self.version = "Unknown"
+
         # Auto-detect installed tools on current machine
         prog_64 = os.environ.get("ProgramW6432", r"C:\Program Files")
         prog_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
@@ -176,8 +188,8 @@ class ValorantPlugin(FlowLauncher):
                     },
                 },
                 {
-                    "Title": "Update Plugin (Git Pull)",
-                    "SubTitle": "Fetch the latest version from GitHub",
+                    "Title": "Update Plugin (v{self.version})",
+                    "SubTitle": "Fetch the latest version from GitHub via git pull",
                     "IcoPath": "icons/update-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",

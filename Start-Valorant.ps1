@@ -71,9 +71,17 @@ function Send-Status {
 # =============================================================================
 if ($Action -eq "Update") {
   Set-Location $PSScriptRoot
-  $gitOutput = git pull 2>&1 | Out-String
+  $oldVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
+
+  $gitOutput = git pull --tags 2>&1 | Out-String
   if ($LASTEXITCODE -eq 0) {
-    Send-Status -Message "Plugin updated! ($($gitOutput.Trim()))" -Color Green
+    newVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
+    if ($oldVer -ne $newVer) {
+      Send-Status -Message "Updated from v$oldVer to v$newVer!" -Color Green
+    }
+    else {
+      Send-Status -Message "Already up to date (v$newVer)." -Color Cyan
+    }
   }
   else {
     Send-Status -Message "Git update failed. Check repository status." -Color Red
