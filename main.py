@@ -16,7 +16,7 @@ class ValorantPlugin(FlowLauncher):
         # Get plugin version
         try:
             with open(
-                os.path.join(base_dir, "plugin.json"), "r", encoding="utf-8"
+                os.path.join(base_dir, "plugin.json"), "r", encoding="utf-8-sig"
             ) as f:
                 self.version = json.load(f).get("Version", "Unknown")
         except Exception:
@@ -188,7 +188,7 @@ class ValorantPlugin(FlowLauncher):
                     },
                 },
                 {
-                    "Title": "Update Plugin (v{self.version})",
+                    "Title": f"Update Plugin (v{self.version})",
                     "SubTitle": "Fetch the latest version from GitHub via git pull",
                     "IcoPath": "icons/update-icon.png",
                     "JsonRPCAction": {
