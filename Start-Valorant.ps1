@@ -45,7 +45,7 @@ function Send-Status {
   if (Get-Module -ListAvailable -Name BurntToast) {
     try {
       Import-Module BurntToast -ErrorAction Stop
-      New-BurntToastNotification -Text "Valorant Launcher", $Message -AppLogo .\icons\val-icon.png -ErrorAction Stop
+      New-BurntToastNotification -Text "Valorant Launcher", $Message -AppLogo "$PSScriptRoot\icons\val-icon.png" -ErrorAction Stop
       return
     }
     catch {
