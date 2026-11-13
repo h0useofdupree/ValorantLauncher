@@ -76,7 +76,7 @@ if ($Action -eq "Update") {
   Set-Location $PSScriptRoot
   $oldVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
 
-  git pull --tags 2>&1 | Out-Null
+  $gitOutput = git -c "url.https://github.com/.insteadOf=git@github.com:" pull --tags 2>&1 | Out-String
   if ($LASTEXITCODE -eq 0) {
     newVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
     if ($oldVer -ne $newVer) {
@@ -87,7 +87,7 @@ if ($Action -eq "Update") {
     }
   }
   else {
-    Send-Status -Message "Git update failed. Check repository status." -Color Red
+    Send-Status -Message "Git update failed: $gitOutput" -Color Red
   }
   exit
 }
