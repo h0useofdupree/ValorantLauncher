@@ -276,7 +276,7 @@ class ValorantPlugin(FlowLauncher):
             return [launch_item, close_item, update_item]
 
     def execute_ps(self, args):
-        script_path = os.path.join(os.path.dirname(__file__), "Start-Valorant.ps1")
+        script_path = os.path.join(os.path.dirname(__file__), "runner.ps1")
 
         # Use pwsh (PS7) if installed, otherwise fall back to powershell.exe
         ps_exe = "pwsh" if shutil.which("pwsh") else "powershell.exe"
