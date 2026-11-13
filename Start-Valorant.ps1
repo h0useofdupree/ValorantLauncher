@@ -78,7 +78,7 @@ if ($Action -eq "Update") {
 
   $gitOutput = git -c "url.https://github.com/.insteadOf=git@github.com:" pull --tags 2>&1 | Out-String
   if ($LASTEXITCODE -eq 0) {
-    newVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
+    $newVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
     if ($oldVer -ne $newVer) {
       Send-Status -Message "Updated from v$oldVer to v$newVer!" -Color Green
     }
