@@ -38,21 +38,27 @@ $ExitLagExe = $ExitLagCandidates | Where-Object { Test-Path $_ } | Select-Object
 # Retain whether RTSS was running before we killed it, or if it's installed
 $HasRtss = Test-Path $RtssExe
 
-# Win32 Helper for hiding annoying Overwolf desktop popup windows without killing the overlay proccess
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class Win32Window {
-  [DllImport("user32.dll")]
-  public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+# Load external C# Win32 helper for window enumeration and suppression
+if (-not ([System.Management.Automation.PSTypeName]'Win32Window').Type) {
+  Add-Type -Path "$PSScriptRoot\lib\Win32Window.cs"
 }
-"@ -ErrorAction SilentlyContinue
+
+$script:CloakedHwnds = @{}
 
 function Hide-TrackerDesktopWindows {
   $procs = Get-Process -Name "OverwolfBrowser", "Overwolf" -ErrorAction SilentlyContinue
   foreach ($p in $procs) {
-    if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -match "Valorant Tracker|Tracker Network") {
-      [Win32Window]::ShowWindow($p.MainWindowHandle, 0) | Out-Null # 0 = SW_HIDE
+    $hwnds = [Win32Window]::GetAllProcessWindows([uint32]$p.Id)
+    foreach ($hwnd in $hwnds) {
+      $title = [Win32Window]::GetTitle($hwnd)
+      $class = [Win32Window]::GetClass($hwnd)
+
+      if ($title -match "Valorant Tracker|Tracker Network" -or ($class -like "WindowsForms10.Window*" -and $title -eq "")) {
+        if ([Win32Window]::IsWindowVisible($hwnd) -or -not $script:CloakedHwnds.ContainsKey($hwnd)) {
+          [Win32Window]::CloakAndHide($hwnd)
+          $script:CloakedHwnds[$hwnd] = $true
+        }
+      }
     }
   }
 }
@@ -267,18 +273,18 @@ if ($Action -eq "Launch") {
   # 5. Optional Post-launch Watcher (Suppresses Tracker window on game boot & handles Auto-Teardown)
   if (($SuppressTracker -and -not $SkipOverlays) -or $AutoTeardown) {
     $valProc = $null
-    for ($i = 0; $i -lt 180; $i++) {
+    for ($i = 0; $i -lt 1800; $i++) {
       if ($SuppressTracker) { Hide-TrackerDesktopWindows }
       $valProc = Get-Process -Name "VALORANT-Win64-Shipping" -ErrorAction SilentlyContinue
       if ($valProc) { break }
-      Start-Sleep -Seconds 1
+      Start-Sleep -Milliseconds 100
     }
 
     if ($valProc) {
       if ($SuppressTracker -and -not $SkipOverlays) {
-        for ($j = 0; $j -lt 240; $j++) {
+        for ($j = 0; $j -lt 1500; $j++) {
           Hide-TrackerDesktopWindows
-          Start-Sleep -Milliseconds 250
+          Start-Sleep -Milliseconds 30
         }
       }
 
