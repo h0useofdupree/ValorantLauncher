@@ -1,0 +1,42 @@
+body:
+- type: dropdown
+  attributes:
+    name: default_launch_mode
+    label: Preferred Launch Mode
+    description: "Moves your preferred launch mode to the #1 spot in the Launch submenu."
+    defaultValue: With ExitLag
+    options:
+    - With ExitLag
+    - Standard (No ExitLag)
+    - No Overlays
+    - Minimal (Game Only)
+
+- type: dropdown
+  attributes:
+    name: default_close_mode
+    label: Preferred Close / Quick Teardown Mode
+    description: Choose whether Quick Close kills everything or keeps Medal running in the background
+    defaultValue: Full Nuke (Kill All)
+    options:
+    - Full Nuke (Kill All)
+    - Keep Medal Open
+
+- type: checkbox
+  attributes:
+    name: suppress_tracker_window
+    label: Suppress Valorant Tracker Startup Popup
+    description: Boots Overwolf silently into the tray and automatically hides the Valorant Tracker chromium desktop window (still allows the in-game frame buffer injected window)
+    defaultValue: true
+
+- type: checkbox
+  attributes:
+    name: auto_teardown_on_exit
+    label: Auto-Teardown When Valorant Closes
+    description: Automatically closes Riot Client, Overwolf, ExitLag (if installed) and restarts RTSS as soon as you quit Valorant.
+    defaultValue: false
+
+- type: input
+  attributes:
+    name: custom_clips_path
+    label: Custom Medal Clips Folder (Optional)
+    description: Leave blank to auto-detect from Medal's config, or paste a custom directory path (e.g., D:\Clips\Valorant).

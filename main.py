@@ -35,13 +35,20 @@ class ValorantPlugin(FlowLauncher):
     def __init__(self):
         self.base_dir = os.path.dirname(__file__)
 
+        # Get plugin version and name from plugin.json
+        self.version = "Unknown"
+        self.plugin_name = "ValorantLauncher"
         try:
             with open(
                 os.path.join(self.base_dir, "plugin.json"), "r", encoding="utf-8-sig"
             ) as f:
-                self.version = json.load(f).get("Version", "Unknown")
+                meta = json.load(f)
+                self.version = meta.get("Version", "Unknown")
+                self.plugin_name = meta.get("Name", "ValorantLauncher")
         except Exception as e:
-            self.version = "Unknown"
+            pass
+
+        self.settings = self.load_settings()
 
         prog_64 = os.environ.get("ProgramW6432", r"C:\Program Files")
         prog_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
@@ -60,6 +67,64 @@ class ValorantPlugin(FlowLauncher):
         self.has_medal = os.path.exists(os.path.join(local_app, "Medal", "Medal.exe"))
 
         super().__init__()
+
+    def load_settings(self):
+        """Read Flow Launcher's native Settings.json for this plugin."""
+        defaults = {
+            "default_launch_mode": "With ExitLag",
+            "default_close_mode": "Full Nuke (Kill All)",
+            "suppress_tracker_window": True,
+            "auto_teardown_on_exit": False,
+            "custom_clips_path": "",
+        }
+
+        appdata = os.environ.get("APPDATA", "")
+        candidates = [
+            os.path.join(
+                appdata,
+                "FlowLauncher",
+                "Settings",
+                "Plugins",
+                self.plugin_name,
+                "Settings.json",
+            ),
+            os.path.join(
+                appdata,
+                "FlowLauncher",
+                "Settings",
+                "Plugins",
+                "ValorantLauncher",
+                "Settings.json",
+            ),
+            os.path.abspath(
+                os.path.join(
+                    self.base_dir,
+                    "..",
+                    "..",
+                    "Settings",
+                    "Plugins",
+                    self.plugin_name,
+                    "Settings.json",
+                )
+            ),
+        ]
+
+        for path in candidates:
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8-sig") as f:
+                        user_cfg = json.load(f)
+                        defaults.update(user_cfg)
+                    break
+                except Exception as e:
+                    pass
+        return defaults
+
+    def _ranked(self, items):
+        """Force Flow Launcher to respect exact list order over usage history."""
+        for i, item in enumerate(items):
+            item["Score"] = 10000 - (i * 1000)
+        return items
 
     def get_session_state(self):
         """Sub-millisecond Win32 kernel snapshot to check running Riot/Valorant processes."""
@@ -129,17 +194,22 @@ class ValorantPlugin(FlowLauncher):
                 )
             except Exception:
                 pass
+
         if latest_remote and self._parse_ver(latest_remote) > self._parse_ver(
             self.version
         ):
             return latest_remote
         return None
 
-    def _ranked(self, items):
-        """Force Flow Launcher to respect exact list order over usage history."""
-        for i, item in enumerate(items):
-            item["Score"] = 10000 - (i * 1000)
-        return items
+    def _build_launch_flags(self, base_flags):
+        flags = base_flags
+        if self.settings.get("suppress_tracker_window", True):
+            flags += " -SuppressTracker"
+        if self.settings.get("auto_teardown_on_exit", False):
+            flags += " -AutoTeardown"
+            if self.settings.get("default_close_mode") == "Keep Medal Open":
+                flags += " -KeepMedal"
+        return flags
 
     def query(self, param=""):
         q = param.strip().lower()
@@ -150,39 +220,42 @@ class ValorantPlugin(FlowLauncher):
         if q.startswith("launch"):
             options = []
             rtss_note = ", suspends RTSS" if self.has_rtss else ""
+            pref_launch = self.settings.get("default_launch_mode", "With ExitLag")
 
             if self.has_exitlag:
-                options.extend(
-                    [
-                        {
-                            "Title": "Launch with ExitLag",
-                            "SubTitle": f"Starts ExitLag, Overlays, and Valorant{rtss_note}",
-                            "IcoPath": "icons/val-icon.png",
-                            "JsonRPCAction": {
-                                "method": "execute_ps",
-                                "parameters": ["-Action Launch -WithExitLag"],
-                            },
-                        },
-                        {
-                            "Title": "Launch without ExitLag",
-                            "SubTitle": f"Starts Overlays and Valorant only{rtss_note}",
-                            "IcoPath": "icons/val-icon.png",
-                            "JsonRPCAction": {
-                                "method": "execute_ps",
-                                "parameters": ["-Action Launch"],
-                            },
-                        },
-                    ]
-                )
+                opt_exitlag = {
+                    "key": "With ExitLag",
+                    "Title": "Launch with ExitLag",
+                    "SubTitle": f"Starts ExitLag, Overlays, and Valorant{rtss_note}",
+                    "IcoPath": "icons/val-icon.png",
+                    "JsonRPCAction": {
+                        "method": "execute_ps",
+                        "parameters": [
+                            self._build_launch_flags("-Action Launch -WithExitLag")
+                        ],
+                    },
+                }
+                opt_std = {
+                    "key": "Standard (No ExitLag)",
+                    "Title": "Launch without ExitLag",
+                    "SubTitle": f"Starts Overlays and Valorant only{rtss_note}",
+                    "IcoPath": "icons/val-icon.png",
+                    "JsonRPCAction": {
+                        "method": "execute_ps",
+                        "parameters": [self._build_launch_flags("-Action Launch")],
+                    },
+                }
+                options.extend([opt_exitlag, opt_std])
             else:
                 options.append(
                     {
+                        "key": "Standard (No ExitLag)",
                         "Title": "Launch Valorant (Standard)",
                         "SubTitle": f"Starts Overlays and Valorant{rtss_note}",
                         "IcoPath": "icons/val-icon.png",
                         "JsonRPCAction": {
                             "method": "execute_ps",
-                            "parameters": ["-Action Launch"],
+                            "parameters": [self._build_launch_flags("-Action Launch")],
                         },
                     }
                 )
@@ -198,12 +271,13 @@ class ValorantPlugin(FlowLauncher):
 
             options.append(
                 {
+                    "key": "No Overlays",
                     "Title": "Launch (No Overlays)",
                     "SubTitle": f"{no_overlay_sub}{rtss_note}",
                     "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
-                        "parameters": [no_overlay_params],
+                        "parameters": [self._build_launch_flags(no_overlay_params)],
                     },
                 }
             )
@@ -211,15 +285,22 @@ class ValorantPlugin(FlowLauncher):
             if self.has_exitlag:
                 options.append(
                     {
+                        "key": "Minimal (Game Only)",
                         "Title": "Launch Minimal (Game Only)",
                         "SubTitle": f"Starts Riot Client only, skips ExitLag & overlays{rtss_note}",
                         "IcoPath": "icons/val-icon.png",
                         "JsonRPCAction": {
                             "method": "execute_ps",
-                            "parameters": ["-Action Launch -SkipOverlays"],
+                            "parameters": [
+                                self._build_launch_flags("-Action Launch -SkipOverlays")
+                            ],
                         },
                     }
                 )
+
+            options.sort(key=lambda x: 0 if x.get("key") == pref_launch else 1)
+            for opt in options:
+                opt.pop("key", None)
 
             return self._ranked(options)
 
@@ -232,32 +313,37 @@ class ValorantPlugin(FlowLauncher):
                 apps_killed.append("ExitLag")
             kill_str = ", ".join(apps_killed)
             rtss_restart = " (restarts RTSS)" if self.has_rtss else ""
+            keep_medal_pref = (
+                self.settings.get("default_close_mode") == "Keep Medal Open"
+            )
 
-            options = [
-                {
-                    "Title": "Close All (Full Nuke)",
-                    "SubTitle": f"Kills {kill_str}"
-                    + (", and Medal" if self.has_medal else "")
-                    + rtss_restart,
+            nuke_item = {
+                "Title": "Close All (Full Nuke)",
+                "SubTitle": f"Kills {kill_str}"
+                + (", and Medal" if self.has_medal else "")
+                + rtss_restart,
+                "IcoPath": "icons/val-icon.png",
+                "JsonRPCAction": {
+                    "method": "execute_ps",
+                    "paramters": ["-Action Close"],
+                },
+            }
+
+            options = [nuke_item]
+            if self.has_medal:
+                keep_item = {
+                    "Title": "Close Game (Keep Medal)",
+                    "SubTitle": f"Kills {kill_str}{rtss_restart}",
                     "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
-                        "parameters": ["-Action Close"],
+                        "parameters": ["-Action Close -KeepMedal"],
                     },
                 }
-            ]
-
-            if self.has_medal:
-                options.append(
-                    {
-                        "Title": "Close Game (Keep Medal)",
-                        "SubTitle": f"Kills {kill_str}{rtss_restart}",
-                        "IcoPath": "icons/val-icon.png",
-                        "JsonRPCAction": {
-                            "method": "execute_ps",
-                            "parameters": ["-Action Close -KeepMedal"],
-                        },
-                    }
+                options = (
+                    [keep_item, nuke_item]
+                    if keep_medal_pref
+                    else [nuke_item, keep_item]
                 )
 
             return self._ranked(options)
@@ -266,6 +352,11 @@ class ValorantPlugin(FlowLauncher):
         # SUBMENU: MEDAL & CLIPS
         # -----------------------------------------
         elif q.startswith("medal"):
+            custom_clips = self.settings.get("custom_clips_path", "").strip()
+            clips_arg = "-Action OpenClips"
+            if custom_clips:
+                clips_arg += f' -CustomClipsPath "{custom_clips}"'
+
             return self._ranked(
                 [
                     {
@@ -279,11 +370,15 @@ class ValorantPlugin(FlowLauncher):
                     },
                     {
                         "Title": "Open Medal Clips Folder",
-                        "SubTitle": "Opens your configured Medal clip directory in Explorer",
+                        "SubTitle": (
+                            f"Opens {custom_clips}"
+                            if custom_clips
+                            else "Opens your configured Medal clip directory in Explorer"
+                        ),
                         "IcoPath": "icons/folder-icon.png",
                         "JsonRPCAction": {
                             "method": "execute_ps",
-                            "parameters": ["-Action OpenClips"],
+                            "parameters": [clips_arg],
                         },
                     },
                 ]
@@ -354,21 +449,34 @@ class ValorantPlugin(FlowLauncher):
 
             menu = []
             if session_active:
+                keep_medal_pref = (
+                    self.settings.get("default_close_mode") == "Keep Medal Open"
+                    and self.has_medal
+                )
                 apps_killed = ["Valorant", "Riot Client", "Overwolf"]
                 if self.has_exitlag:
                     apps_killed.append("ExitLag")
-                if self.has_medal:
+                if self.has_medal and not keep_medal_pref:
                     apps_killed.append("Medal")
                 kill_str = ", ".join(apps_killed)
                 rtss_restart = " (restarts RTSS)" if self.has_rtss else ""
 
+                quick_title = (
+                    "Quick Close (Keep Medal)"
+                    if keep_medal_pref
+                    else "Quick Close (Full Nuke)"
+                )
+                quick_param = (
+                    "-Action Close -KeepMedal" if keep_medal_pref else "-Action Close"
+                )
+
                 quick_close_item = {
-                    "Title": "Quick Close (Full Nuke)",
+                    "Title": quick_title,
                     "SubTitle": f"One-click teardown: Kills {kill_str}{rtss_restart}",
                     "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
-                        "parameters": ["-Action Close"],
+                        "parameters": [quick_param],
                     },
                 }
                 menu.extend([close_item, quick_close_item, launch_item])

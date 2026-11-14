@@ -2,8 +2,10 @@ param (
   [string]$Action = "Launch",
   [switch]$WithExitLag,
   [switch]$SkipOverlays,
-  [switch]$KeepMedal
-
+  [switch]$KeepMedal,
+  [switch]$SuppressTracker,
+  [switch]$AutoTeardown,
+  [string]$CustomClipsPath = ""
 )
 
 # =============================================================================
@@ -35,6 +37,25 @@ $ExitLagExe = $ExitLagCandidates | Where-Object { Test-Path $_ } | Select-Object
 
 # Retain whether RTSS was running before we killed it, or if it's installed
 $HasRtss = Test-Path $RtssExe
+
+# Win32 Helper for hiding annoying Overwolf desktop popup windows without killing the overlay proccess
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class Win32Window {
+  [DllImport("user32.dll")]
+  public static extern bool ShowWindow(IntPtr, hWnd, int nCmdShow);
+}
+"@ -ErrorAction SilentlyContinue
+
+function Hide-TrackerDesktopWindows {
+  $procs = Get-Process -Name "OverwolfBrowser", "Overwolf" -ErrorAction SilentlyContinue
+  foreach ($p in $procs) {
+    if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -match "Valorant Tracker|Tracker Network") {
+      [Win32Window]::ShowWindow($p.MainWindowHandle, 0) | Out-Null # 0 = SW_HIDE
+    }
+  }
+}
 
 # =============================================================================
 # NOTIFICATION ENGINE (BurntToast with Native Win10/11 Fallback)
@@ -70,6 +91,23 @@ function Send-Status {
   catch {}
 }
 
+function Invoke-Teardown {
+  param([bool]$PreserveMedal)
+  Stop-Process -Name "VALORANT-Win64-Shipping" -Force -ErrorAction SilentlyContinue
+  Stop-Process -Name "RiotClientServices" -Force -ErrorAction SilentlyContinue
+  Stop-Process -Name "Overwolf" -Force -ErrorAction SilentlyContinue
+  Stop-Process -Name "OverwolfLauncher" -Force -ErrorAction SilentlyContinue
+  Stop-Process -Name "ExitLag" -Force -ErrorAction SilentlyContinue
+
+  if (-not $PreserveMedal) {
+    Stop-Process -Name "Medal" -Force -ErrorAction SilentlyContinue
+  }
+
+  if ($HasRtss -and -not (Get-Process -Name "RTSS" -ErrorAction SilentlyContinue)) {
+    Start-Process -FilePath $RtssExe -ErrorAction SilentlyContinue
+  }
+}
+
 # =============================================================================
 # MEDAL & CLIPS UTILITIES
 # =============================================================================
@@ -82,13 +120,17 @@ if ($Action -eq "OpenMedal") {
 
 if ($Action -eq "OpenClips") {
   $clipsDir = $null
-  $medalSettings = "$env:APPDATA\Medal\store\settings.json"
 
-  if (Test-Path $medalSettings) {
+  if ($CustomClipsPath -and (Test-Path $CustomClipsPath)) {
+    $clipsDir = $CustomClipsPath
+  }
+
+  $medalSettings = "$env:APPDATA\Medal\store\settings.json"
+  if (-not $clipsDir -and (Test-Path $medalSettings)) {
     try {
-      $cfg = Get-Content $medalSettings -Raw | ConvertFrom-Json
+      $cfg = Get-Content $medalSettings -Raw | ConvertTo-Json
       if ($cfg.recorder.clipFolder -and (Test-Path $cfg.recorder.clipFolder)) {
-        $clipsDir = $cfg.recorder.clipFolder + "\clips\Valorant"
+        $clipsDir = $cfg.recorder.clipFolder
       }
     }
     catch {}
@@ -145,21 +187,7 @@ if ($Action -eq "Update") {
 # =============================================================================
 if ($Action -eq "Close") {
   Send-Status -Message "Initiating Teardown Sequence..." -Color Cyan
-
-  Stop-Process -Name "VALORANT-Win64-Shipping" -Force -ErrorAction SilentlyContinue
-  Stop-Process -Name "RiotClientServices" -Force -ErrorAction SilentlyContinue
-  Stop-Process -Name "Overwolf" -Force -ErrorAction SilentlyContinue
-  Stop-Process -Name "OverwolfLauncher" -Force -ErrorAction SilentlyContinue
-  Stop-Process -Name "ExitLag" -Force -ErrorAction SilentlyContinue
-
-  if (-not $KeepMedal) {
-    Stop-Process -Name "Medal" -Force -ErrorAction SilentlyContinue
-  }
-
-  if ($HasRtss -and -not (Get-Process -Name "RTSS" -ErrorAction SilentlyContinue)) {
-    Start-Process -FilePath $RtssExe -ErrorAction SilentlyContinue
-  }
-
+  Invoke-Teardown -PreserveMedal $KeepMedal.IsPresent
   Send-Status -Message "Teardown Complete. Background apps closed." -Color Green
   exit
 }
@@ -177,13 +205,13 @@ if ($Action -eq "Launch") {
   }
 
   # 2. Boot ExitLag (if requested & installed)
-  if ($WithExitLag -and (Test-Path $ExitLagExe)) {
+  if ($WithExitLag -and $ExitLagExe -and (Test-Path $ExitLagExe)) {
     if (-not (Get-Process -Name "ExitLag" -ErrorAction SilentlyContinue)) {
       Start-Process -FilePath $ExitLagExe
     }
   }
 
-  # 3. Launch background overlays
+  # 3. Launch background overlays & poll every 100ms
   if (-not $SkipOverlays) {
     $waitTargets = @()
 
@@ -191,9 +219,14 @@ if ($Action -eq "Launch") {
       Start-Process -FilePath $MedalExe -ArgumentList "--hidden"
       $waitTargets += "Medal"
     }
-    if ((Test-Path $OverwolfExe) -and -not (Get-Process -Name "Overwolf" -ErrorAction SilentlyContinue)) {
-      Start-Process -FilePath $OverwolfExe -ArgumentList "-launchapp ipmlnnogholfmdmenfijjifldcpjoecappfccceh -from-desktop"
-      $waitTargets += "Overwolf"
+    if ((Test-Path $OverwolfExe) -and -not (Get-Process -Name "Overwolf*" -ErrorAction SilentlyContinue)) {
+      if ($SuppressTracker) {
+        Start-Process -FilePath $OverwolfExe -ArgumentList "-overwolfsilent -silent"
+      }
+      else {
+        Start-Process -FilePath $OverwolfExe -ArgumentList "-launchapp ipmlnnogholfmdmenfijjifldcpjoecappfccceh -from-desktop"
+      }
+      $waitTargets += "Overwolf*"
     }
 
     if ($waitTargets.Count -gt 0) {
@@ -225,5 +258,31 @@ if ($Action -eq "Launch") {
   }
   else {
     Send-Status -Message "Error: Riot Client not found at $RiotClientExe" -Color Red
+    exit
+  }
+
+  if (($SuppressTracker -and -not $SkipOverlays) -or $AutoTeardown) {
+    $valProc = $null
+    for ($i = 0; $i -lt 180; $i++) {
+      if ($SuppressTracker) { Hide-TrackerDesktopWindows }
+      $valProc = Get-Process -Name "VALORANT-Win64-Shipping" -ErrorAction SilentlyContinue
+      if ($valProc) { break }
+      Start-Sleep -Seconds 1
+    }
+
+    if ($valProc) {
+      if ($SuppressTracker -and -not $SkipOverlays) {
+        for ($j = 0; $j -lt 30; $j++) {
+          Hide-TrackerDesktopWindows
+          Start-Sleep -Seconds 1
+        }
+      }
+
+      if ($AutoTeardown) {
+        Wait-Process -Name "VALORANT-Win64-Shipping" -ErrorAction SilentlyContinue
+        Invoke-Teardown -PreserveMedal $KeepMedal.IsPresent
+        Send-Status -Message "Valorant closed. Auto-teardown complete!" -Color Green
+      }
+    }
   }
 }
