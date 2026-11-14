@@ -135,6 +135,12 @@ class ValorantPlugin(FlowLauncher):
             return latest_remote
         return None
 
+    def _ranked(self, items):
+        """Force Flow Launcher to respect exact list order over usage history."""
+        for i, item in enumerate(items):
+            item["Score"] = 10000 - (i * 1000)
+        return items
+
     def query(self, param=""):
         q = param.strip().lower()
 
@@ -215,7 +221,7 @@ class ValorantPlugin(FlowLauncher):
                     }
                 )
 
-            return options
+            return self._ranked(options)
 
         # -----------------------------------------
         # SUBMENU: CLOSE OPTIONS
@@ -254,33 +260,34 @@ class ValorantPlugin(FlowLauncher):
                     }
                 )
 
-            return options
+            return self._ranked(options)
 
         # -----------------------------------------
         # SUBMENU: MEDAL & CLIPS
         # -----------------------------------------
         elif q.startswith("medal"):
-            return [
-                {
-                    "Title": "Open Medal Window",
-                    "SubTitle": "Brings the hidden Medal client UI to the foreground",
-                    "IcoPath": "icons/medal-icon.png",
-                    "JsonRPCAction": {
-                        "method": "execute_ps",
-                        "parameters": ["-Action OpenMedal"],
+            return self._ranked(
+                [
+                    {
+                        "Title": "Open Medal Window",
+                        "SubTitle": "Brings the hidden Medal client UI to the foreground",
+                        "IcoPath": "icons/medal-icon.png",
+                        "JsonRPCAction": {
+                            "method": "execute_ps",
+                            "parameters": ["-Action OpenMedal"],
+                        },
                     },
-                },
-                {
-                    "Title": "Open Medal Clips Folder",
-                    "SubTitle": "Opens your configured Medal clip directory in Explorer",
-                    "IcoPath": "icons/folder-icon.png",
-                    "JsonRPCAction": {
-                        "method": "execute_ps",
-                        "parameters": ["-Action OpenClips"],
+                    {
+                        "Title": "Open Medal Clips Folder",
+                        "SubTitle": "Opens your configured Medal clip directory in Explorer",
+                        "IcoPath": "icons/folder-icon.png",
+                        "JsonRPCAction": {
+                            "method": "execute_ps",
+                            "parameters": ["-Action OpenClips"],
+                        },
                     },
-                },
-            ]
-
+                ]
+            )
         # -----------------------------------------
         # MAIN MENU
         # -----------------------------------------
@@ -372,7 +379,7 @@ class ValorantPlugin(FlowLauncher):
                 menu.append(medal_item)
 
             menu.append(update_item)
-            return menu
+            return self._ranked(menu)
 
     def execute_ps(self, args):
         script_path = os.path.join(os.path.dirname(__file__), "runner.ps1")
