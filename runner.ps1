@@ -3,6 +3,7 @@ param (
   [switch]$WithExitLag,
   [switch]$SkipOverlays,
   [switch]$KeepMedal
+
 )
 
 # =============================================================================
@@ -70,6 +71,49 @@ function Send-Status {
 }
 
 # =============================================================================
+# MEDAL & CLIPS UTILITIES
+# =============================================================================
+if ($Action -eq "OpenMedal") {
+  if (Test-Path $MedalExe) {
+    Start-Process -FilePath $MedalExe
+  }
+  exit
+}
+
+if ($Action -eq "OpenClips") {
+  $clipsDir = $null
+  $medalSettings = "$env:APPDATA\Medal\store\settings.json"
+
+  if (Test-Path $medalSettings) {
+    try {
+      $cfg = Get-Content $medalSettings -Raw | ConvertFrom-Json
+      if ($cfg.recorder.clipFolder -and (Test-Path $cfg.recorder.clipFolder)) {
+        $clipsDir = $cfg.recorder.clipFolder + "\clips\Valorant"
+      }
+    }
+    catch {}
+  }
+
+  if (-not $clipsDir) {
+    $fallbacks = @(
+      "C:\Medal\Clips",
+      "D:\Medal\Clips",
+      "$HOME\Videos\Medal",
+      "$HOME\Videos"
+    )
+    $clipsDir = $fallbacks | Where-Object { Test-Path $_ } | Select-Object -First 1
+  }
+
+  if ($clipsDir) {
+    Start-Process "explorer.exe" -ArgumentList "`"$clipsDir`""
+  }
+  else {
+    Send-Status -Message "Could not locate Medal clips directory." -Color Red
+  }
+  exit
+}
+
+# =============================================================================
 # SELF-UPDATE SEQUENCE (GIT PULL)
 # =============================================================================
 if ($Action -eq "Update") {
@@ -79,6 +123,10 @@ if ($Action -eq "Update") {
   $gitOutput = git -c "url.https://github.com/.insteadOf=git@github.com:" pull --tags 2>&1 | Out-String
   if ($LASTEXITCODE -eq 0) {
     $newVer = (Get-Content "$PSScriptRoot\plugin.json" -Raw | ConvertFrom-Json).Version
+
+    # Clear cached update check file for immediate UI refresh
+    Remove-Item "$PSScriptRoot\.update_cache.json" -Force -ErrorAction SilentlyContinue
+
     if ($oldVer -ne $newVer) {
       Send-Status -Message "Updated from v$oldVer to v$newVer!" -Color Green
     }
@@ -132,24 +180,44 @@ if ($Action -eq "Launch") {
   if ($WithExitLag -and (Test-Path $ExitLagExe)) {
     if (-not (Get-Process -Name "ExitLag" -ErrorAction SilentlyContinue)) {
       Start-Process -FilePath $ExitLagExe
-      Start-Sleep -Seconds 3
     }
   }
 
   # 3. Launch background overlays
   if (-not $SkipOverlays) {
-    if (Test-Path $MedalExe) {
+    $waitTargets = @()
+
+    if ((Test-Path $MedalExe) -and -not (Get-Process -Name "Medal" -ErrorAction SilentlyContinue)) {
       Start-Process -FilePath $MedalExe -ArgumentList "--hidden"
+      $waitTargets += "Medal"
     }
-    if (Test-Path $OverwolfExe) {
+    if ((Test-Path $OverwolfExe) -and -not (Get-Process -Name "Overwolf" -ErrorAction SilentlyContinue)) {
       Start-Process -FilePath $OverwolfExe -ArgumentList "-launchapp ipmlnnogholfmdmenfijjifldcpjoecappfccceh -from-desktop"
+      $waitTargets += "Overwolf"
     }
-    Start-Sleep -Seconds 3
+
+    if ($waitTargets.Count -gt 0) {
+      $elapsed = 0
+      while ($elapsed -lt 3000) {
+        $allReady = $true
+        foreach ($proc in $waitTargets) {
+          if (-not (Get-Process -Name $proc -ErrorAction SilentlyContinue)) {
+            $allReady = $false
+            break
+          }
+        }
+        if ($allReady) { break }
+        Start-Sleep -Milliseconds 100
+        $elapsed += 100
+      }
+    }
   }
 
   # 4. Clean up & Launch Riot Client
-  Stop-Process -Name "RiotClientServices" -Force -ErrorAction SilentlyContinue
-  Start-Sleep -Seconds 1
+  if (Get-Process -Name "RiotClientServices" -ErrorAction SilentlyContinue) {
+    Stop-Process -Name "RiotClientServices" -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+  }
 
   if (Test-Path $RiotClientExe) {
     Send-Status -Message "Launching Riot Client. Click 'Play' when ready." -Color Yellow

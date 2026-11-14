@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import time
 import ctypes
 from ctypes import wintypes
 import shutil
@@ -12,6 +13,7 @@ from flowlauncher import FlowLauncher
 
 CREATE_NO_WINDOW = 0x08000000
 TH32CS_SNAPPROCESS = 0x00000002
+UPDATE_CHECK_INTERVAL = 14400  # 4 hours
 
 
 class PROCESSENTRY32W(ctypes.Structure):
@@ -31,14 +33,14 @@ class PROCESSENTRY32W(ctypes.Structure):
 
 class ValorantPlugin(FlowLauncher):
     def __init__(self):
-        base_dir = os.path.dirname(__file__)
+        self.base_dir = os.path.dirname(__file__)
 
         try:
             with open(
-                os.path.join(base_dir, "plugin.json"), "r", encoding="utf-8-sig"
+                os.path.join(self.base_dir, "plugin.json"), "r", encoding="utf-8-sig"
             ) as f:
                 self.version = json.load(f).get("Version", "Unknown")
-        except Exception:
+        except Exception as e:
             self.version = "Unknown"
 
         prog_64 = os.environ.get("ProgramW6432", r"C:\Program Files")
@@ -86,6 +88,52 @@ class ValorantPlugin(FlowLauncher):
             kernel32.CloseHandle(h_snap)
 
         return val_running, riot_running
+
+    def _parse_ver(self, v_str):
+        try:
+            return tuple(int(x) for x in v_str.lstrip("v").split("."))
+        except Exception:
+            return (0, 0, 0)
+
+    def get_remote_udpate_status(self):
+        """Non-blocking cached check for newer GitHub tags."""
+        cache_file = os.path.join(self.base_dir, ".update_cache.json")
+        now = time.time()
+        latest_remote = None
+        needs_refresh = True
+
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    latest_remote = data.get("latest")
+                    if now - data.get("timestamp", 0) < UPDATE_CHECK_INTERVAL:
+                        needs_refresh = False
+            except Exception:
+                pass
+
+        if needs_refresh:
+            bg_code = (
+                "import subprocess, re, json, time; "
+                "out = subprocess.check_output(['git', '-c', 'url.https://github.com/.insteadOf=git@github.com:', 'ls-remote', '--tags', '--refs', 'origin'], text=True, creationflags=0x08000000);"
+                "tags = re.findall(r'refs/tags/v?(\\d+\\.\\d+\\.\\d+)', out); "
+                "latest = max(tags, key=lambda s: [int(x) for x in s.split('.')]) if tags else ''; "
+                f"open({repr(cache_file)}, 'w').write(json.dumps({{'timestamp': time.time(), 'latest': latest}}))"
+            )
+
+            try:
+                subprocess.Popen(
+                    [sys.executable, "-c", bg_code],
+                    cwd=self.base_dir,
+                    creationflags=CREATE_NO_WINDOW,
+                )
+            except Exception:
+                pass
+        if latest_remote and self._parse_ver(latest_remote) > self._parse_ver(
+            self.version
+        ):
+            return latest_remote
+        return None
 
     def query(self, param=""):
         q = param.strip().lower()
@@ -209,11 +257,37 @@ class ValorantPlugin(FlowLauncher):
             return options
 
         # -----------------------------------------
-        # MAIN MENU (Context-Aware)
+        # SUBMENU: MEDAL & CLIPS
+        # -----------------------------------------
+        elif q.startswith("medal"):
+            return [
+                {
+                    "Title": "Open Medal Window",
+                    "SubTitle": "Brings the hidden Medal client UI to the foreground",
+                    "IcoPath": "icons/medal-icon.png",
+                    "JsonRPCAction": {
+                        "method": "execute_ps",
+                        "parameters": ["-Action OpenMedal"],
+                    },
+                },
+                {
+                    "Title": "Open Medal Clips Folder",
+                    "SubTitle": "Opens your configured Medal clip directory in Explorer",
+                    "IcoPath": "icons/folder-icon.png",
+                    "JsonRPCAction": {
+                        "method": "execute_ps",
+                        "parameters": ["-Action OpenClips"],
+                    },
+                },
+            ]
+
+        # -----------------------------------------
+        # MAIN MENU
         # -----------------------------------------
         else:
             val_running, riot_running = self.get_session_state()
             session_active = val_running or riot_running
+            newer_ver = self.get_remote_udpate_status()
 
             launch_item = {
                 "Title": "Launch Options..."
@@ -243,9 +317,27 @@ class ValorantPlugin(FlowLauncher):
                 },
             }
 
+            medal_item = {
+                "Title": "Medal & Clips...",
+                "SubTitle": "Open your Medal recording folder or bring up the Medal UI",
+                "IcoPath": "icons/val-icon.png",
+                "JsonRPCAction": {
+                    "method": "Flow.Launcher.ChangeQuery",
+                    "parameters": ["vl medal ", True],
+                    "dontHideAfterAction": True,
+                },
+            }
+
+            if newer_ver:
+                update_title = f"Update Available! (v{self.version} -> v{newer_ver})"
+                update_sub = "Click to pull the newest release from GitHub"
+            else:
+                update_title = f"Update Plugin (v{self.version})"
+                update_sub = "Fetch the latest version from GitHub via git pull"
+
             update_item = {
-                "Title": f"Update Plugin (v{self.version})",
-                "SubTitle": "Fetch the latest version from GitHub via git pull",
+                "Title": update_title,
+                "SubTitle": update_sub,
                 "IcoPath": "icons/update-icon.png",
                 "JsonRPCAction": {
                     "method": "execute_ps",
@@ -253,6 +345,7 @@ class ValorantPlugin(FlowLauncher):
                 },
             }
 
+            menu = []
             if session_active:
                 apps_killed = ["Valorant", "Riot Client", "Overwolf"]
                 if self.has_exitlag:
@@ -271,9 +364,15 @@ class ValorantPlugin(FlowLauncher):
                         "parameters": ["-Action Close"],
                     },
                 }
-                return [close_item, quick_close_item, launch_item, update_item]
+                menu.extend([close_item, quick_close_item, launch_item])
+            else:
+                menu.extend([launch_item, close_item])
 
-            return [launch_item, close_item, update_item]
+            if self.has_medal:
+                menu.append(medal_item)
+
+            menu.append(update_item)
+            return menu
 
     def execute_ps(self, args):
         script_path = os.path.join(os.path.dirname(__file__), "runner.ps1")
