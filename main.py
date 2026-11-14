@@ -352,7 +352,7 @@ class ValorantPlugin(FlowLauncher):
         # SUBMENU: MEDAL & CLIPS
         # -----------------------------------------
         elif q.startswith("medal"):
-            custom_clips = self.settings.get("custom_clips_path", "").strip()
+            custom_clips = (self.settings.get("custom_clips_path") or "").strip()
             clips_arg = "-Action OpenClips"
             if custom_clips:
                 clips_arg += f' -CustomClipsPath "{custom_clips}"'
