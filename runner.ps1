@@ -132,6 +132,9 @@ if ($Action -eq "OpenClips") {
       if ($cfg.recorder.clipFolder -and (Test-Path $cfg.recorder.clipFolder)) {
         $clipsDir = $cfg.recorder.clipFolder
       }
+      elseif ($cfg.recorder.recorderFolder -and (Test-Path $cfg.recorder.recorderFolder)) {
+        $clipsDir = $cfg.recorder.recorderFolder
+      }
     }
     catch {}
   }
