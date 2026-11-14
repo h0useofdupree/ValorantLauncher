@@ -11,7 +11,6 @@ param (
 # =============================================================================
 # DYNAMIC PATH RESOLUTION (Works across C:\, D:\, Win10 & Win11)
 # =============================================================================
-# 1. Auto-detect Riot Client from Windows Registry, fallback to C:\Riot Games
 $RiotReg = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Riot Game valorant.live" -ErrorAction SilentlyContinue
 if ($RiotReg -and $RiotReg.UninstallString) {
   if ($RiotReg.UninstallString -match '"([^"]+RiotClientServices\.exe)"') {
@@ -34,11 +33,8 @@ $ExitLagCandidates = @(
   "$env:LOCALAPPDATA\ExitLag\ExitLag.exe"
 )
 $ExitLagExe = $ExitLagCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-# Retain whether RTSS was running before we killed it, or if it's installed
 $HasRtss = Test-Path $RtssExe
 
-# Load external C# Win32 helper for window enumeration and suppression
 if (-not ([System.Management.Automation.PSTypeName]'Win32Window').Type) {
   Add-Type -Path "$PSScriptRoot\lib\Win32Window.cs"
 }

@@ -35,7 +35,6 @@ class ValorantPlugin(FlowLauncher):
     def __init__(self):
         self.base_dir = os.path.dirname(__file__)
 
-        # Get plugin version and name from plugin.json
         self.version = "Unknown"
         self.plugin_name = "ValorantLauncher"
         try:
@@ -383,6 +382,7 @@ class ValorantPlugin(FlowLauncher):
                     },
                 ]
             )
+
         # -----------------------------------------
         # MAIN MENU
         # -----------------------------------------
@@ -492,7 +492,6 @@ class ValorantPlugin(FlowLauncher):
     def execute_ps(self, args):
         script_path = os.path.join(os.path.dirname(__file__), "runner.ps1")
 
-        # Use pwsh (PS7) if installed, otherwise fall back to powershell.exe
         ps_exe = "pwsh" if shutil.which("pwsh") else "powershell.exe"
         command = f'{ps_exe} -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{script_path}" {args}'
         subprocess.Popen(command, shell=False, creationflags=CREATE_NO_WINDOW)
