@@ -128,7 +128,7 @@ if ($Action -eq "OpenClips") {
   $medalSettings = "$env:APPDATA\Medal\store\settings.json"
   if (-not $clipsDir -and (Test-Path $medalSettings)) {
     try {
-      $cfg = Get-Content $medalSettings -Raw | ConvertTo-Json
+      $cfg = Get-Content $medalSettings -Raw | ConvertFrom-Json
       if ($cfg.recorder.clipFolder -and (Test-Path $cfg.recorder.clipFolder)) {
         $clipsDir = $cfg.recorder.clipFolder
       }
