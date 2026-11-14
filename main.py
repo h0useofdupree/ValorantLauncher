@@ -325,7 +325,7 @@ class ValorantPlugin(FlowLauncher):
                 "IcoPath": "icons/val-icon.png",
                 "JsonRPCAction": {
                     "method": "execute_ps",
-                    "paramters": ["-Action Close"],
+                    "parameters": ["-Action Close"],
                 },
             }
 
