@@ -44,7 +44,7 @@ using System;
 using System.Runtime.InteropServices;
 public class Win32Window {
   [DllImport("user32.dll")]
-  public static extern bool ShowWindow(IntPtr, hWnd, int nCmdShow);
+  public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }
 "@ -ErrorAction SilentlyContinue
 
