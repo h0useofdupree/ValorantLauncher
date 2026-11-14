@@ -275,9 +275,9 @@ if ($Action -eq "Launch") {
 
     if ($valProc) {
       if ($SuppressTracker -and -not $SkipOverlays) {
-        for ($j = 0; $j -lt 30; $j++) {
+        for ($j = 0; $j -lt 240; $j++) {
           Hide-TrackerDesktopWindows
-          Start-Sleep -Seconds 1
+          Start-Sleep -Milliseconds 250
         }
       }
 
