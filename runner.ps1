@@ -264,6 +264,7 @@ if ($Action -eq "Launch") {
     exit
   }
 
+  # 5. Optional Post-launch Watcher (Suppresses Tracker window on game boot & handles Auto-Teardown)
   if (($SuppressTracker -and -not $SkipOverlays) -or $AutoTeardown) {
     $valProc = $null
     for ($i = 0; $i -lt 180; $i++) {
