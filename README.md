@@ -98,6 +98,7 @@ The plugin integrates with Flow Launcher's native GUI settings via `SettingsTemp
 - **Preferred Close / Quick Teardown Mode:** Sets whether `Quick Close` and the primary close action default to `Full Nuke (Kill All)` or `Keep Medal Open`.
 - **Suppress Valorant Tracker Startup Popup:** Enables silent Overwolf startup and Win32 window cloaking for the Valorant Tracker desktop window.
 - **Auto-Teardown When Valorant Closes:** Keeps a lightweight background watcher alive that automatically triggers your teardown sequence the moment `VALORANT-Win64-Shipping.exe` exits.
+- **Silent Toast Notifications:** Silences toast notifications created by BurntToast and the native fallback method.
 - **Custom Medal Clips Folder:** Optional directory path override for the `Open Medal Clips Folder` command.
 
 ### Note for Tiling Window Manager Users (GlazeWM / Komorebi)

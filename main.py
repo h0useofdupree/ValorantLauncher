@@ -74,6 +74,7 @@ class ValorantPlugin(FlowLauncher):
             "default_close_mode": "Full Nuke (Kill All)",
             "suppress_tracker_window": True,
             "auto_teardown_on_exit": False,
+            "silent_notifications": True,
             "custom_clips_path": "",
         }
 
@@ -504,6 +505,9 @@ class ValorantPlugin(FlowLauncher):
 
     def execute_ps(self, args):
         script_path = os.path.join(os.path.dirname(__file__), "runner.ps1")
+
+        if self.settings.get("silent_notifications", True):
+            args += " -SilentNotifications"
 
         ps_exe = "pwsh" if shutil.which("pwsh") else "powershell.exe"
         command = f'{ps_exe} -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{script_path}" {args}'

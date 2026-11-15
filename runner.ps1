@@ -5,6 +5,7 @@ param (
   [switch]$KeepMedal,
   [switch]$SuppressTracker,
   [switch]$AutoTeardown,
+  [switch]$SilentNotifications,
   [string]$CustomClipsPath = ""
 )
 
@@ -69,7 +70,14 @@ function Send-Status {
   if (Get-Module -ListAvailable -Name BurntToast) {
     try {
       Import-Module BurntToast -ErrorAction Stop
-      New-BurntToastNotification -Text "Valorant Launcher", $Message -AppLogo "$PSScriptRoot\icons\val-icon.png" -ErrorAction Stop
+      $btParams = @{
+        Text = "Valorant Launcher", $Message
+        AppLogo = "$PSScriptRoot\icons\val-icon.png"
+        ErrorAction = "Stop"
+      }
+      if ($SilentNotifications) { $btParams["Silent"] = $true }
+
+      New-BurntToastNotification @btParams
       return
     }
     catch {
@@ -82,7 +90,10 @@ function Send-Status {
     Add-Type -AssemblyName System.Windows.Forms
     $balloon = New-Object System.Windows.Forms.NotifyIcon
     $balloon.Icon = [System.Drawing.SystemIcons]::Information
-    $balloon.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
+
+    # 0x01 (Info Icon) + 0x10 (NIIF_NOSOUND) = 17
+    # 0x10 = 16 for No Icon + No Sound
+    $balloon.BalloonTipIcon = if ($SilentNotifications) { [System.Windows.Forms.ToolTipIcon]17 } else { [System.Windows.Forms.ToolTipIcon]::Info }
     $balloon.BalloonTipTitle = "Valorant Launcher"
     $balloon.BalloonTipText = $Message
     $balloon.Visible = $true

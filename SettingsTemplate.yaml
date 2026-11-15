@@ -35,6 +35,13 @@ body:
     description: Automatically closes Riot Client, Overwolf, ExitLag (if installed) and restarts RTSS as soon as you quit Valorant.
     defaultValue: false
 
+- type: checkbox
+  attributes:
+    name: silent_notifications
+    label: Silent Toast Notifications
+    description: Suppresses notification sounds on launch, teardown and update popups.
+    defaultValue: true
+
 - type: input
   attributes:
     name: custom_clips_path
