@@ -44,7 +44,7 @@ class ValorantPlugin(FlowLauncher):
                 meta = json.load(f)
                 self.version = meta.get("Version", "Unknown")
                 self.plugin_name = meta.get("Name", "ValorantLauncher")
-        except Exception as e:
+        except Exception:
             pass
 
         self.settings = self.load_settings()

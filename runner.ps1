@@ -99,6 +99,7 @@ function Invoke-Teardown {
   Stop-Process -Name "RiotClientServices" -Force -ErrorAction SilentlyContinue
   Stop-Process -Name "Overwolf" -Force -ErrorAction SilentlyContinue
   Stop-Process -Name "OverwolfLauncher" -Force -ErrorAction SilentlyContinue
+  Stop-Process -Name "OverwolfBrowser" -Force -ErrorAction SilentlyContinue
   Stop-Process -Name "ExitLag" -Force -ErrorAction SilentlyContinue
 
   if (-not $PreserveMedal) {
