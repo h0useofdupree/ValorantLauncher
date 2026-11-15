@@ -210,284 +210,297 @@ class ValorantPlugin(FlowLauncher):
                 flags += " -KeepMedal"
         return flags
 
-    def query(self, param=""):
-        q = param.strip().lower()
+    # -------------------------------------------------------------------------
+    # SUBMENU ITEM BUILDERS (Reused across Submenus, Quick Actions & Root Search)
+    # -------------------------------------------------------------------------
+    def _get_launch_options(self):
+        options = []
+        rtss_note = ", suspends RTSS" if self.has_rtss else ""
+        pref_launch = self.settings.get("default_launch_mode", "With ExitLag")
 
-        # -----------------------------------------
-        # SUBMENU: LAUNCH OPTIONS
-        # -----------------------------------------
-        if q.startswith("launch"):
-            options = []
-            rtss_note = ", suspends RTSS" if self.has_rtss else ""
-            pref_launch = self.settings.get("default_launch_mode", "With ExitLag")
-
-            if self.has_exitlag:
-                opt_exitlag = {
-                    "key": "With ExitLag",
-                    "Title": "Launch with ExitLag",
-                    "SubTitle": f"Starts ExitLag, Overlays, and Valorant{rtss_note}",
-                    "IcoPath": "icons/val-icon.png",
-                    "JsonRPCAction": {
-                        "method": "execute_ps",
-                        "parameters": [
-                            self._build_launch_flags("-Action Launch -WithExitLag")
-                        ],
-                    },
-                }
-                opt_std = {
+        if self.has_exitlag:
+            opt_exitlag = {
+                "key": "With ExitLag",
+                "Title": "Launch with ExitLag",
+                "SubTitle": f"Starts ExitLag, Overlays, and Valorant{rtss_note}",
+                "IcoPath": "icons/val-icon.png",
+                "JsonRPCAction": {
+                    "method": "execute_ps",
+                    "parameters": [
+                        self._build_launch_flags("-Action Launch -WithExitLag")
+                    ],
+                },
+            }
+            opt_std = {
+                "key": "Standard (No ExitLag)",
+                "Title": "Launch without ExitLag",
+                "SubTitle": f"Starts Overlays and Valorant only{rtss_note}",
+                "IcoPath": "icons/val-icon.png",
+                "JsonRPCAction": {
+                    "method": "execute_ps",
+                    "parameters": [self._build_launch_flags("-Action Launch")],
+                },
+            }
+            options.extend([opt_exitlag, opt_std])
+        else:
+            options.append(
+                {
                     "key": "Standard (No ExitLag)",
-                    "Title": "Launch without ExitLag",
-                    "SubTitle": f"Starts Overlays and Valorant only{rtss_note}",
+                    "Title": "Launch Valorant (Standard)",
+                    "SubTitle": f"Starts Overlays and Valorant{rtss_note}",
                     "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
                         "parameters": [self._build_launch_flags("-Action Launch")],
                     },
                 }
-                options.extend([opt_exitlag, opt_std])
-            else:
-                options.append(
-                    {
-                        "key": "Standard (No ExitLag)",
-                        "Title": "Launch Valorant (Standard)",
-                        "SubTitle": f"Starts Overlays and Valorant{rtss_note}",
-                        "IcoPath": "icons/val-icon.png",
-                        "JsonRPCAction": {
-                            "method": "execute_ps",
-                            "parameters": [self._build_launch_flags("-Action Launch")],
-                        },
-                    }
-                )
-
-            no_overlay_params = "-Action Launch -SkipOverlays" + (
-                " -WithExitLag" if self.has_exitlag else ""
-            )
-            no_overlay_sub = (
-                "Starts ExitLag & Valorant, skips overlays"
-                if self.has_exitlag
-                else "Starts Valorant only, skips overlays"
             )
 
+        no_overlay_params = "-Action Launch -SkipOverlays" + (
+            " -WithExitLag" if self.has_exitlag else ""
+        )
+        no_overlay_sub = (
+            "Starts ExitLag & Valorant, skips overlays"
+            if self.has_exitlag
+            else "Starts Valorant only, skips overlays"
+        )
+
+        options.append(
+            {
+                "key": "No Overlays",
+                "Title": "Launch (No Overlays)",
+                "SubTitle": f"{no_overlay_sub}{rtss_note}",
+                "IcoPath": "icons/val-icon.png",
+                "JsonRPCAction": {
+                    "method": "execute_ps",
+                    "parameters": [self._build_launch_flags(no_overlay_params)],
+                },
+            }
+        )
+
+        if self.has_exitlag:
             options.append(
                 {
-                    "key": "No Overlays",
-                    "Title": "Launch (No Overlays)",
-                    "SubTitle": f"{no_overlay_sub}{rtss_note}",
+                    "key": "Minimal (Game Only)",
+                    "Title": "Launch Minimal (Game Only)",
+                    "SubTitle": f"Starts Riot Client only, skips ExitLag & overlays{rtss_note}",
                     "IcoPath": "icons/val-icon.png",
                     "JsonRPCAction": {
                         "method": "execute_ps",
-                        "parameters": [self._build_launch_flags(no_overlay_params)],
+                        "parameters": [
+                            self._build_launch_flags("-Action Launch -SkipOverlays")
+                        ],
                     },
                 }
             )
 
-            if self.has_exitlag:
-                options.append(
-                    {
-                        "key": "Minimal (Game Only)",
-                        "Title": "Launch Minimal (Game Only)",
-                        "SubTitle": f"Starts Riot Client only, skips ExitLag & overlays{rtss_note}",
-                        "IcoPath": "icons/val-icon.png",
-                        "JsonRPCAction": {
-                            "method": "execute_ps",
-                            "parameters": [
-                                self._build_launch_flags("-Action Launch -SkipOverlays")
-                            ],
-                        },
-                    }
-                )
+        options.sort(key=lambda x: 0 if x.get("key") == pref_launch else 1)
+        for opt in options:
+            opt.pop("key", None)
 
-            options.sort(key=lambda x: 0 if x.get("key") == pref_launch else 1)
-            for opt in options:
-                opt.pop("key", None)
+        return options
 
-            return self._ranked(options)
+    def _get_close_options(self):
+        apps_killed = ["Valorant", "Riot Client", "Overwolf"]
+        if self.has_exitlag:
+            apps_killed.append("ExitLag")
+        kill_str = ", ".join(apps_killed)
+        rtss_restart = " (restarts RTSS)" if self.has_rtss else ""
+        keep_medal_pref = self.settings.get("default_close_mode") == "Keep Medal Open"
 
-        # -----------------------------------------
-        # SUBMENU: CLOSE OPTIONS
-        # -----------------------------------------
-        elif q.startswith("close"):
-            apps_killed = ["Valorant", "Riot Client", "Overwolf"]
-            if self.has_exitlag:
-                apps_killed.append("ExitLag")
-            kill_str = ", ".join(apps_killed)
-            rtss_restart = " (restarts RTSS)" if self.has_rtss else ""
-            keep_medal_pref = (
-                self.settings.get("default_close_mode") == "Keep Medal Open"
-            )
+        nuke_item = {
+            "Title": "Close All (Full Nuke)",
+            "SubTitle": f"Kills {kill_str}"
+            + (", and Medal" if self.has_medal else "")
+            + rtss_restart,
+            "IcoPath": "icons/val-icon.png",
+            "JsonRPCAction": {
+                "method": "execute_ps",
+                "parameters": ["-Action Close"],
+            },
+        }
 
-            nuke_item = {
-                "Title": "Close All (Full Nuke)",
-                "SubTitle": f"Kills {kill_str}"
-                + (", and Medal" if self.has_medal else "")
-                + rtss_restart,
+        options = [nuke_item]
+        if self.has_medal:
+            keep_item = {
+                "Title": "Close Game (Keep Medal)",
+                "SubTitle": f"Kills {kill_str}{rtss_restart}",
                 "IcoPath": "icons/val-icon.png",
                 "JsonRPCAction": {
                     "method": "execute_ps",
-                    "parameters": ["-Action Close"],
+                    "parameters": ["-Action Close -KeepMedal"],
                 },
             }
-
-            options = [nuke_item]
-            if self.has_medal:
-                keep_item = {
-                    "Title": "Close Game (Keep Medal)",
-                    "SubTitle": f"Kills {kill_str}{rtss_restart}",
-                    "IcoPath": "icons/val-icon.png",
-                    "JsonRPCAction": {
-                        "method": "execute_ps",
-                        "parameters": ["-Action Close -KeepMedal"],
-                    },
-                }
-                options = (
-                    [keep_item, nuke_item]
-                    if keep_medal_pref
-                    else [nuke_item, keep_item]
-                )
-
-            return self._ranked(options)
-
-        # -----------------------------------------
-        # SUBMENU: MEDAL & CLIPS
-        # -----------------------------------------
-        elif q.startswith("medal"):
-            custom_clips = (self.settings.get("custom_clips_path") or "").strip()
-            clips_arg = "-Action OpenClips"
-            if custom_clips:
-                clips_arg += f' -CustomClipsPath "{custom_clips}"'
-
-            return self._ranked(
-                [
-                    {
-                        "Title": "Open Medal Window",
-                        "SubTitle": "Brings the hidden Medal client UI to the foreground",
-                        "IcoPath": "icons/medal-icon.png",
-                        "JsonRPCAction": {
-                            "method": "execute_ps",
-                            "parameters": ["-Action OpenMedal"],
-                        },
-                    },
-                    {
-                        "Title": "Open Medal Clips Folder",
-                        "SubTitle": (
-                            f"Opens {custom_clips}"
-                            if custom_clips
-                            else "Opens your configured Medal clip directory in Explorer"
-                        ),
-                        "IcoPath": "icons/folder-icon.png",
-                        "JsonRPCAction": {
-                            "method": "execute_ps",
-                            "parameters": [clips_arg],
-                        },
-                    },
-                ]
+            options = (
+                [keep_item, nuke_item] if keep_medal_pref else [nuke_item, keep_item]
             )
 
-        # -----------------------------------------
-        # MAIN MENU
-        # -----------------------------------------
-        else:
-            val_running, riot_running = self.get_session_state()
-            session_active = val_running or riot_running
-            newer_ver = self.get_remote_update_status()
+        return options
 
-            launch_item = {
-                "Title": "Launch Options..."
-                + (" (Session Active)" if session_active else ""),
-                "SubTitle": "Choose how to start Valorant",
-                "IcoPath": "icons/val-icon.png",
-                "JsonRPCAction": {
-                    "method": "Flow.Launcher.ChangeQuery",
-                    "parameters": ["vl launch ", True],
-                    "dontHideAfterAction": True,
-                },
-            }
+    def _get_medal_options(self):
+        custom_clips = (self.settings.get("custom_clips_path") or "").strip()
+        clips_arg = "-Action OpenClips"
+        if custom_clips:
+            clips_arg += f' -CustomClipsPath "{custom_clips}"'
 
-            status_badge = (
-                " [VALORANT RUNNING]"
-                if val_running
-                else (" [RIOT CLIENT OPEN]" if riot_running else "")
-            )
-            close_item = {
-                "Title": f"Close Options...{status_badge}",
-                "SubTitle": "Clean up background apps and game clients",
-                "IcoPath": "icons/val-icon.png",
-                "JsonRPCAction": {
-                    "method": "Flow.Launcher.ChangeQuery",
-                    "parameters": ["vl close ", True],
-                    "dontHideAfterAction": True,
-                },
-            }
-
-            medal_item = {
-                "Title": "Medal & Clips...",
-                "SubTitle": "Open your Medal recording folder or bring up the Medal UI",
+        return [
+            {
+                "Title": "Open Medal Window",
+                "SubTitle": "Brings the hidden Medal client UI to the foreground",
                 "IcoPath": "icons/medal-icon.png",
                 "JsonRPCAction": {
-                    "method": "Flow.Launcher.ChangeQuery",
-                    "parameters": ["vl medal ", True],
-                    "dontHideAfterAction": True,
+                    "method": "execute_ps",
+                    "parameters": ["-Action OpenMedal"],
                 },
-            }
-
-            if newer_ver:
-                update_title = f"Update Available! (v{self.version} -> v{newer_ver})"
-                update_sub = "Click to pull the newest release from GitHub"
-            else:
-                update_title = f"Update Plugin (v{self.version})"
-                update_sub = "Fetch the latest version from GitHub via git pull"
-
-            update_item = {
-                "Title": update_title,
-                "SubTitle": update_sub,
-                "IcoPath": "icons/update-icon.png",
+            },
+            {
+                "Title": "Open Medal Clips Folder",
+                "SubTitle": (
+                    f"Opens {custom_clips}"
+                    if custom_clips
+                    else "Opens your configured Medal clip directory in Explorer"
+                ),
+                "IcoPath": "icons/folder-icon.png",
                 "JsonRPCAction": {
                     "method": "execute_ps",
-                    "parameters": ["-Action Update"],
+                    "parameters": [clips_arg],
                 },
-            }
+            },
+        ]
 
-            menu = []
-            if session_active:
-                keep_medal_pref = (
-                    self.settings.get("default_close_mode") == "Keep Medal Open"
-                    and self.has_medal
-                )
-                apps_killed = ["Valorant", "Riot Client", "Overwolf"]
-                if self.has_exitlag:
-                    apps_killed.append("ExitLag")
-                if self.has_medal and not keep_medal_pref:
-                    apps_killed.append("Medal")
-                kill_str = ", ".join(apps_killed)
-                rtss_restart = " (restarts RTSS)" if self.has_rtss else ""
+    def _get_update_item(self, newer_ver=None):
+        if newer_ver:
+            update_title = f"Update Available! (v{self.version} -> v{newer_ver})"
+            update_sub = "Click to pull the newest release from GitHub"
+        else:
+            update_title = f"Update Plugin (v{self.version})"
+            update_sub = "Fetch the latest version from GitHub via git pull"
 
-                quick_title = (
-                    "Quick Close (Keep Medal)"
-                    if keep_medal_pref
-                    else "Quick Close (Full Nuke)"
-                )
-                quick_param = (
-                    "-Action Close -KeepMedal" if keep_medal_pref else "-Action Close"
-                )
+        return {
+            "Title": update_title,
+            "SubTitle": update_sub,
+            "IcoPath": "icons/update-icon.png",
+            "JsonRPCAction": {
+                "method": "execute_ps",
+                "parameters": ["-Action Update"],
+            },
+        }
 
-                quick_close_item = {
-                    "Title": quick_title,
-                    "SubTitle": f"One-click teardown: Kills {kill_str}{rtss_restart}",
-                    "IcoPath": "icons/val-icon.png",
-                    "JsonRPCAction": {
-                        "method": "execute_ps",
-                        "parameters": [quick_param],
-                    },
-                }
-                menu.extend([close_item, quick_close_item, launch_item])
-            else:
-                menu.extend([launch_item, close_item])
+    # -------------------------------------------------------------------------
+    # QUERY ROUTER
+    # -------------------------------------------------------------------------
+    def query(self, param=""):
+        q = param.strip().lower()
 
-            if self.has_medal:
-                menu.append(medal_item)
+        # 1. SUBMENU: LAUNCH OPTIONS
+        if q.startswith("launch"):
+            return self._ranked(self._get_launch_options())
 
-            menu.append(update_item)
-            return self._ranked(menu)
+        # 2. SUBMENU: CLOSE OPTIONS
+        elif q.startswith("close"):
+            return self._ranked(self._get_close_options())
+
+        # 3. SUBMENU: MEDAL & CLIPS
+        elif q.startswith("medal"):
+            return self._ranked(self._get_medal_options())
+
+        newer_ver = self.get_remote_update_status()
+        update_item = self._get_update_item()
+
+        # 4. DIRECT ROOT KEYWORD FILTERING (e.g. "vl nuke", "vl clips", "vl min")
+        if q:
+            searchable_pool = (
+                self._get_launch_options()
+                + self._get_close_options()
+                + (self._get_medal_options() if self.has_medal else [])
+                + [update_item]
+            )
+            tokens = q.split()
+            title_matches = []
+            sub_matches = []
+
+            for item in searchable_pool:
+                t_low = item["Title"].lower()
+                s_low = item["SubTitle"].lower()
+                if all(tok in t_low for tok in tokens):
+                    title_matches.append(item)
+                elif all(tok in (t_low + " " + s_low) for tok in tokens):
+                    sub_matches.append(item)
+
+            matched = title_matches + sub_matches
+            if matched:
+                return self._ranked(matched)
+
+        # 5. MAIN MENU (Context-Aware)
+        val_running, riot_running = self.get_session_state()
+        session_active = val_running or riot_running
+
+        launch_item = {
+            "Title": "Launch Options..."
+            + (" (Session Active)" if session_active else ""),
+            "SubTitle": "Choose how to start Valorant",
+            "IcoPath": "icons/val-icon.png",
+            "JsonRPCAction": {
+                "method": "Flow.Launcher.ChangeQuery",
+                "parameters": ["vl launch ", True],
+                "dontHideAfterAction": True,
+            },
+        }
+
+        status_badge = (
+            " [VALORANT RUNNING]"
+            if val_running
+            else (" [RIOT CLIENT OPEN]" if riot_running else "")
+        )
+
+        close_item = {
+            "Title": f"Close Options...{status_badge}",
+            "SubTitle": "Clean up background apps and game clients",
+            "IcoPath": "icons/val-icon.png",
+            "JsonRPCAction": {
+                "method": "Flow.Launcher.ChangeQuery",
+                "parameters": ["vl close ", True],
+                "dontHideAfterAction": True,
+            },
+        }
+
+        medal_item = {
+            "Title": "Medal & Clips...",
+            "SubTitle": "Open your Medal recording folder or bring up the Medal UI",
+            "IcoPath": "icons/medal-icon.png",
+            "JsonRPCAction": {
+                "method": "Flow.Launcher.ChangeQuery",
+                "parameters": ["vl close ", True],
+                "dontHideAfterAction": True,
+            },
+        }
+
+        menu = []
+        if session_active:
+            # Grab preferred launch option for quick launch
+            top_close = self._get_close_options()[0].copy()
+            keep_medal_pref = (
+                self.settings.get("default_close_mode") == "Keep Medal Open"
+                and self.has_medal
+            )
+            top_close["Title"] = (
+                "Quick Close (Keep Medal)"
+                if keep_medal_pref
+                else "Quick Close (Full Nuke)"
+            )
+            top_close["SubTitle"] = f"One-click teardown: {top_close['SubTitle']}"
+            menu.extend([close_item, top_close, launch_item])
+        else:
+            top_launch = self._get_launch_options()[0].copy()
+            top_launch["Title"] = f"Quick {top_launch['Title']}"
+            top_launch["SubTitle"] = f"One-click start: {top_launch['SubTitle']}"
+            menu.extend([top_launch, launch_item, close_item])
+
+        if self.has_medal:
+            menu.append(medal_item)
+
+        menu.append(update_item)
+        return self._ranked(menu)
 
     def execute_ps(self, args):
         script_path = os.path.join(os.path.dirname(__file__), "runner.ps1")
