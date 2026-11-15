@@ -61,8 +61,8 @@ The main menu dynamically reorders itself based on whether `VALORANT-Win64-Shipp
   - `Medal & Clips...` (`vl medal`): Appears if Medal is installed; opens the (initially) hidden Medal UI or opens your configured recordings folder in Windows Explorer.
   - `Update Plugin`: Pulls the latest release tag from GitHub. Displays an `Update Available!` banner when a newer remote tag is detected.
 
-    > [!NOTE]
-    > The plugin checks for updates automatically every 4 hours
+> [!NOTE]
+> `Update Plugin` checks for updates automatically every 4 hours.
 
 - **When Session is Active:**
   - `Close Options... [VALORANT RUNNING]` floats to the first position.
@@ -72,14 +72,14 @@ The main menu dynamically reorders itself based on whether `VALORANT-Win64-Shipp
 
 - **`vl launch`**
   - **Launch with ExitLag:** Suspends RTSS, starts ExitLag asynchronously, boots Medal (`--hidden`) and Overwolf (`-overwolfsilent -silent`), and launches the Riot Client into the Valorant tab.
-    > [!NOTE]
-    > The command
-    >
-    > ```pwsh
-    > RiotClientServices.exe --launch-product=valorant --launch-patchline=live
-    > ```
-    >
-    > used to allow the plugin to directly initiate the launch of Valorant itself from the launcher, but this seems to have stopped working. I am working on either getting that to work again or find a simple alternative solution.
+> [!NOTE]
+> The command
+>
+> ```pwsh
+> RiotClientServices.exe --launch-product=valorant --launch-patchline=live
+> ```
+>
+> used to allow the plugin to directly initiate the launch of Valorant itself from the launcher, but this seems to have stopped working. I am working on either getting that to work again or find a simple alternative solution.
   - **Launch without ExitLag / Standard:** Same as above, omitting ExitLag.
   - **Launch (No Overlays):** Suspends RTSS, starts ExitLag (if installed), skips Medal and Overwolf, and starts Valorant.
   - **Launch Minimal (Game Only):** Starts only the Riot Client and suspends RTSS.
