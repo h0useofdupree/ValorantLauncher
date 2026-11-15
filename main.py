@@ -159,7 +159,7 @@ class ValorantPlugin(FlowLauncher):
         except Exception:
             return (0, 0, 0)
 
-    def get_remote_udpate_status(self):
+    def get_remote_update_status(self):
         """Non-blocking cached check for newer GitHub tags."""
         cache_file = os.path.join(self.base_dir, ".update_cache.json")
         now = time.time()
@@ -389,7 +389,7 @@ class ValorantPlugin(FlowLauncher):
         else:
             val_running, riot_running = self.get_session_state()
             session_active = val_running or riot_running
-            newer_ver = self.get_remote_udpate_status()
+            newer_ver = self.get_remote_update_status()
 
             launch_item = {
                 "Title": "Launch Options..."
