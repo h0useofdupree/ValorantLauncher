@@ -422,7 +422,7 @@ class ValorantPlugin(FlowLauncher):
             medal_item = {
                 "Title": "Medal & Clips...",
                 "SubTitle": "Open your Medal recording folder or bring up the Medal UI",
-                "IcoPath": "icons/val-icon.png",
+                "IcoPath": "icons/medal-icon.png",
                 "JsonRPCAction": {
                     "method": "Flow.Launcher.ChangeQuery",
                     "parameters": ["vl medal ", True],
